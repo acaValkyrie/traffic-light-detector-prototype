@@ -66,6 +66,8 @@ def main():
 
     while True:
         display_img = img.copy()
+        display_img = cv2.blur(display_img, (9, 9))
+
         if rect:
             x1, y1, x2, y2 = rect
             cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
