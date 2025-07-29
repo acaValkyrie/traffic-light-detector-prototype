@@ -253,7 +253,8 @@ def detect_from_buffer(img: np.ndarray) -> list:
         for signal, (x1, y1, x2, y2) in detected_signals
     ]
 
-    return detected_signals
+    # return detected_signals
+    return detected_signals, masks
     
 def main():
     input_dir="traffic-light"
