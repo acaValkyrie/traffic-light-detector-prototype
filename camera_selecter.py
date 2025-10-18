@@ -1,7 +1,7 @@
 import subprocess
 import re
 
-def get_camera_index_by_name(target_name: str) -> int | None:
+def get_camera_index_by_name(target_name: str, index=0) -> int | None:
     """
     指定されたカメラ名に対応する /dev/videoX の X（整数）を返す。
     見つからなければ None を返す。
@@ -36,6 +36,6 @@ def get_camera_index_by_name(target_name: str) -> int | None:
     # 対象名が含まれていれば、その最初の /dev/videoX の X を返す
     for name, indices in devices:
         if target_name in name:
-            return indices[0]
+            return indices[index]
 
     return None
