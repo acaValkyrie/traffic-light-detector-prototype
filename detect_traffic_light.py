@@ -9,10 +9,10 @@ IMAGE_RESIZE = (200, 200)
 
 # HSV thresholds
 HSV_THRESHOLDS = {
-    "B_red_on":     [((0, 255, 255), (0, 255, 255)), ((172, 180, 220), (179, 255, 255))],
-    "B_red_off":    [((0, 255, 255), (0, 255, 255)), ((150, 60, 50), (179, 230, 150))],
-    "B_blue_on":    [((85, 150, 90), (100, 250, 180))],
-    "B_blue_off":   [((95, 100, 60), (105, 210, 140))]
+    "B_red_on":     [((165, 69, 73), (177, 136, 97))],
+    "B_red_off":    [((140, 33, 43), (171, 65, 70))],
+    "B_blue_on":    [((79, 66, 71), (101, 93, 86))],
+    "B_blue_off":   [((90, 59, 63), (105, 93, 73))]
 }
 
 LABELS = [
@@ -184,7 +184,7 @@ def process_and_plot_images(input_dir="traffic-light"):
             continue
 
         img_resized = cv2.resize(img, IMAGE_RESIZE)
-        blur_size = 10
+        blur_size = 3
         img_blur = cv2.blur(img_resized, (blur_size, blur_size))
         hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
 
@@ -228,7 +228,7 @@ def process_and_plot_images(input_dir="traffic-light"):
 
 def detect_from_buffer(img: np.ndarray) -> list:
     img_resized = cv2.resize(img, IMAGE_RESIZE)
-    blur_size = 10
+    blur_size = 3
     img_blur = cv2.blur(img_resized, (blur_size, blur_size))
     hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
 

@@ -35,8 +35,9 @@ def process_rect(image, rect):
 
     roi = image[y1:y2, x1:x2]
     if roi.size == 0:
-        print("選択範囲が無効です")
-        return
+        # print("選択範囲が無効です")
+        # return
+        roi = image[y1:y1+1, x1:x1+1]  # 最小サイズの領域を使用
 
     rgb_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2RGB)
     mean_rgb = np.mean(rgb_roi, axis=(0, 1)).astype(np.uint8)
@@ -66,7 +67,7 @@ def main():
 
     while True:
         display_img = img.copy()
-        display_img = cv2.blur(display_img, (9, 9))
+        display_img = cv2.blur(display_img, (3, 3))
 
         if rect:
             x1, y1, x2, y2 = rect
