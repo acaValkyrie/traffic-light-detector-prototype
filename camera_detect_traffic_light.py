@@ -23,13 +23,16 @@ def colorize_mask(mask, color):
     return color_mask
 
 from camera_selecter import get_camera_index_by_name
-cap = cv2.VideoCapture(get_camera_index_by_name("HD USB Camera"))
+# cap = cv2.VideoCapture(get_camera_index_by_name("C270 HD WEBCAM"))
+camera_index = get_camera_index_by_name("Intel(R) RealSense(TM) Depth Ca", 4)
+print(f"Using camera index: {camera_index}")
+cap = cv2.VideoCapture(camera_index)
 
-cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1) # 1で露光設定を手動にセット
-cap.set(cv2.CAP_PROP_EXPOSURE, 0)
+cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
+cap.set(cv2.CAP_PROP_EXPOSURE, 40)
 
-cap.set(cv2.CAP_PROP_AUTO_WB, 0) # 0でホワイトバランスを手動にセット
-cap.set(cv2.CAP_PROP_WB_TEMPERATURE, 3400)
+cap.set(cv2.CAP_PROP_AUTO_WB, 1)
+# cap.set(cv2.CAP_PROP_WB_TEMPERATURE, 4600)
 
 import datetime
 while cap.isOpened():
@@ -43,14 +46,30 @@ while cap.isOpened():
         cv2.imwrite(f'cap/{filename}', frame)
         print(f"Frame captured and saved as {filename}")
 
-    signals, masks = dtl.detect_from_buffer(frame)
+    res = dtl.detect_from_buffer(frame)
+    if not res:
+        # insufficient masks/signals — skip this frame
+        continue
+    signals, masks = res
     mask_colors = [
         (0, 0, 255), (0, 0, 100),
-        (255, 0, 0), (100, 0, 0) 
-        ]
-    masks = [colorize_mask(mask, color) for mask, color in zip(masks, mask_colors)]
-    masks = np.vstack(masks)
-    masks = cv2.resize(masks, ( masks.shape[1], frame.shape[0]), interpolation=cv2.INTER_NEAREST)
+        (255, 0, 0), (100, 0, 0)
+    ]
+
+    # detect_from_buffer creates masks at IMAGE_RESIZE (e.g. 200x200).
+    # Resize them to the incoming frame size so we can horizontally stack for display.
+    h, w = frame.shape[:2]
+    masks_resized = [cv2.resize(mask, (w, h), interpolation=cv2.INTER_NEAREST) for mask in masks]
+
+    colored_masks = [colorize_mask(mask, color) for mask, color in zip(masks_resized, mask_colors)]
+
+    # combine the colored masks into a single overlay image
+    all_mask = colored_masks[0].copy()
+    for mask in colored_masks[1:]:
+        all_mask = cv2.add(all_mask, mask)
+    masks = all_mask
+
+    # attach masks to the right of the frame for visualization
     frame = np.hstack((frame, masks))
 
     if len(signals) != 0:
