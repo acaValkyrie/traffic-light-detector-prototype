@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 import math
 
 plt.rcParams["font.family"] = "IPAexGothic"
-IMAGE_RESIZE = (200, 200)
+IMAGE_RESIZE = (640, 480)
 
 # HSV thresholds
 HSV_THRESHOLDS = {
-    "B_red_on":     [((165, 69, 73), (177, 136, 97))],
-    "B_red_off":    [((140, 33, 43), (171, 65, 70))],
-    "B_blue_on":    [((79, 66, 71), (101, 93, 86))],
-    "B_blue_off":   [((90, 59, 63), (105, 93, 73))]
+    "red_on":     ((165, 69, 61), (180, 153, 103)),
+    "red_off":    ((114, 26, 43), (171, 93, 62)),
+    "blue_on":    ((73, 51, 48), (106, 104, 95)),
+    "blue_off":   ((74, 13, 34), (123, 93, 73))
 }
 
 LABELS = [
@@ -38,24 +38,21 @@ def hsv_to_rgb(hsv):
     return rgb / 255.0
 
 def generate_color_mask(hsv_img, ranges):
-    combined_mask = np.zeros(hsv_img.shape[:2], dtype=np.uint8)
-    hue_list, sat_list, val_list = [], [], []
+    # 指定されたHSV範囲でマスクを生成
+    lower, upper = ranges
+    mask = cv2.inRange(hsv_img, lower, upper)
 
-    for lower, upper in ranges:
-        mask = cv2.inRange(hsv_img, lower, upper)
-        combined_mask = cv2.bitwise_or(combined_mask, mask)
-        lh, ls, lv = lower
-        uh, us, uv = upper
-        hue_list.append((lh + uh) // 2)
-        sat_list.append((ls + us) // 2)
-        val_list.append((lv + uv) // 2)
-
-    avg_h = circular_mean_hue(hue_list)
-    avg_s = int(np.mean(sat_list))
-    avg_v = int(np.mean(val_list))
+    # 指定されたhsvの範囲の平均色を求めてマスクの色としたい
+    lh, ls, lv = lower
+    uh, us, uv = upper
+    avg_h = (lh + uh) // 2
+    avg_s = (ls + us) // 2
+    avg_v = (lv + uv) // 2
     avg_color_hsv = (avg_h, avg_s, avg_v)
+    # rgb色空間で返す
     color_rgb = hsv_to_rgb(avg_color_hsv)
-    return combined_mask, color_rgb
+
+    return mask, color_rgb
 
 def draw_contours_on_mask(mask, color_rgb, min_area_ratio=0.003, max_area_ratio=0.5):
     h, w = mask.shape
@@ -230,15 +227,24 @@ def detect_from_buffer(img: np.ndarray) -> list:
     img_resized = cv2.resize(img, IMAGE_RESIZE)
     blur_size = 3
     img_blur = cv2.blur(img_resized, (blur_size, blur_size))
-    hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
+    hsv_buffer = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
 
     masks = []
     for col, key in enumerate(list(HSV_THRESHOLDS.keys()), start=1):
-        mask, color_rgb = generate_color_mask(hsv, HSV_THRESHOLDS[key])
+        mask, color_rgb = generate_color_mask(hsv_buffer, HSV_THRESHOLDS[key])
+        
         mask = process_mask(mask, min_area=300, max_area=5000, iterations=7)
         masks.append(mask)
 
     if len(masks) < 4: return
+    plt.close()
+    fig, axes = plt.subplots(1, 1 + len(masks))
+    axes[0].imshow(cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB))
+    for ax, mask, label in zip(axes[1:], masks, LABELS[1:]):
+        ax.imshow(mask, cmap='gray')
+        ax.set_title(label)
+    plt.tight_layout()
+    plt.show()
 
     # 必要なマスクが揃っている場合
     B_red_on, B_red_off, B_blue_on, B_blue_off = masks
@@ -273,25 +279,25 @@ def main():
     fig, axs = plt.subplots(rows, cols, figsize=(3 * cols, 3 * rows))
     axs = axs.reshape(rows, cols)
 
-    for row, filename in enumerate(image_files):
+    for row_i, filename in enumerate(image_files):
         path = os.path.join(input_dir, filename)
         img = cv2.imread(path)
         if img is None:
             continue
 
-        signals = detect_from_buffer(img)
+        signals, masks = detect_from_buffer(img)
 
-        axs[row, 0].imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        axs[row, 0].set_title(f"{filename}", fontsize=9)
-        axs[row, 0].axis("off")
+        axs[row_i, 0].imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        axs[row_i, 0].set_title(f"{filename}", fontsize=9)
+        axs[row_i, 0].axis("off")
         img_with_signals = img.copy()
-        if signals:
+        if signals and len(signals) > 0:
             for signal, (x1, y1, x2, y2) in signals:
                 color = (0, 0, 255) if signal == "red" else (255, 0, 0)
                 cv2.rectangle(img_with_signals, (x1, y1), (x2, y2), color, 2)
-        axs[row, 1].imshow(cv2.cvtColor(img_with_signals, cv2.COLOR_BGR2RGB))
-        axs[row, 1].set_title("Detected Signals", fontsize=9)
-        axs[row, 1].axis("off")
+        axs[row_i, 1].imshow(cv2.cvtColor(img_with_signals, cv2.COLOR_BGR2RGB))
+        axs[row_i, 1].set_title("Detected Signals", fontsize=9)
+        axs[row_i, 1].axis("off")
 
     plt.tight_layout()
     output_dir = "output"
